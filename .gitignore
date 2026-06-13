@@ -1,0 +1,46 @@
+# Anchor / Rust build artifacts
+.anchor
+target
+**/*.rs.bk
+
+# Solana local validators / ledgers
+test-ledger
+.surfpool
+
+# Node / package managers
+node_modules
+.yarn
+.pnp.*
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Secrets & keypairs — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+wallet.json
+id.json
+*-wallet.json
+
+# Frontend build outputs (demo UI in app/)
+.next
+out
+dist
+build
+.turbo
+.vercel
+*.tsbuildinfo
+
+# Logs & coverage
+*.log
+logs
+coverage
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
