@@ -55,14 +55,8 @@ describe("sentinel-er-flow", () => {
   const ENTRY = new BN(100_000_000); // $100.00 at 1e6
   const STOP = new BN(95_000_000); //  $95.00 stop
 
-  it("initialize vault (base layer)", async () => {
-    await program.methods
-      .initializeVault()
-      .accounts({ trader })
-      .rpc({ skipPreflight: true, commitment: "confirmed" });
-    const vault = await program.account.vault.fetch(vaultPDA);
-    assert.equal(vault.owner.toBase58(), trader.toBase58());
-  });
+  // No initialize step: the vault is a data-less PDA derived from the trader; the
+  // monitoring flow only needs the guard + price-feed accounts, created below.
 
   it("register guard: long stop-loss at $95 (base layer)", async () => {
     await program.methods
@@ -71,6 +65,7 @@ describe("sentinel-er-flow", () => {
         side: 1, // Flash Side::Long (None=0, Long=1, Short=2)
         rule: { priceBelow: {} },
         triggerPrice: STOP,
+        trailDistance: new BN(0),
         closePriceLimit: new BN(94_000_000), // allow some slippage on close
         initialPrice: ENTRY,
       })

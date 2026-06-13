@@ -20,9 +20,18 @@ pnpm-debug.log*
 .env.*
 !.env.example
 *.pem
+*.key
 wallet.json
 id.json
 *-wallet.json
+# Any Solana keypair (program/wallet/validator) anywhere in the tree
+*-keypair.json
+**/test-ledger/
+keypairs/
+
+# Dumped / large binaries (e.g. artifacts/flash_ref.so — reproducible via `solana program dump`)
+artifacts/
+*.so
 
 # Frontend build outputs (demo UI in app/)
 .next

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sentinel — On-Chain Stop-Loss Guardian</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { darkMode: "class", theme: { extend: { fontFamily: { mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"] } } } };
+    </script>
+    <style>
+      body { background: #0a0a0f; }
+      @keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.5);} 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0);} }
+      .pulse-red { animation: pulse-red 1.2s infinite; }
+      @keyframes pulse-green { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.5);} 50% { box-shadow: 0 0 0 8px rgba(34,197,94,0);} }
+      .pulse-green { animation: pulse-green 1.2s infinite; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

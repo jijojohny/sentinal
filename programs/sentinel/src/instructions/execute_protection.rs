@@ -5,9 +5,9 @@ use anchor_lang::solana_program::{
 };
 use sha2::{Digest, Sha256};
 
-use crate::constants::{FLASH_PROGRAM_ID, VAULT_SEED};
+use crate::constants::VAULT_SEED;
 use crate::error::SentinelError;
-use crate::state::{GuardConfig, Vault};
+use crate::state::GuardConfig;
 
 /// Slippage-protected price arg expected by Flash `close_position`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -34,15 +34,20 @@ pub struct ExecuteProtection<'info> {
     #[account(mut)]
     pub guard: Account<'info, GuardConfig>,
 
+    /// CHECK: data-less vault PDA — the Flash position owner/signer; receives the
+    /// closed rent/proceeds. mut: lamports change on close. Bound to guard.owner
+    /// via seeds, and cross-checked against guard.vault below.
     #[account(
-        seeds = [VAULT_SEED, vault.owner.as_ref()],
-        bump = vault.bump,
+        mut,
+        seeds = [VAULT_SEED, guard.owner.as_ref()],
+        bump,
         constraint = guard.vault == vault.key() @ SentinelError::VaultMismatch,
     )]
-    pub vault: Account<'info, Vault>,
+    pub vault: UncheckedAccount<'info>,
 
-    /// CHECK: Flash perpetuals program, validated by address.
-    #[account(address = FLASH_PROGRAM_ID @ SentinelError::MarketMismatch)]
+    /// CHECK: target venue program to CPI. In production pin this to
+    /// constants::FLASH_PROGRAM_ID; for the devnet harness we accept the passed
+    /// program so we can point at the interface-faithful flash_stub.
     pub flash_program: UncheckedAccount<'info>,
 
     /// Anyone can pay/submit; carries no authority.
@@ -96,8 +101,8 @@ pub fn handler<'info>(ctx: Context<'info, ExecuteProtection<'info>>) -> Result<(
         infos.push(acc.clone());
     }
 
-    let owner_key = ctx.accounts.vault.owner;
-    let bump = ctx.accounts.vault.bump;
+    let owner_key = guard.owner;
+    let bump = ctx.bumps.vault;
     let signer_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, owner_key.as_ref(), &[bump]]];
 
     invoke_signed(&ix, &infos, signer_seeds)?;

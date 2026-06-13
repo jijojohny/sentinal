@@ -30,6 +30,11 @@ pub fn handler(ctx: Context<Evaluate>) -> Result<()> {
 
     guard.last_price = price;
 
+    // Trailing stops ratchet the trigger up as price rises — every tick, on-chain.
+    if price > 0 {
+        guard.ratchet(price);
+    }
+
     if price > 0 && guard.is_tripped(price) {
         guard.triggered = true;
         msg!(

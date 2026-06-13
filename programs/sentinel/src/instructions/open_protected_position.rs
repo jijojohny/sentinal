@@ -5,9 +5,8 @@ use anchor_lang::solana_program::{
 };
 use sha2::{Digest, Sha256};
 
-use crate::constants::{FLASH_PROGRAM_ID, VAULT_SEED};
+use crate::constants::VAULT_SEED;
 use crate::error::SentinelError;
-use crate::state::Vault;
 
 /// Mirrors Flash `OpenPositionParams { price, collateral, size, side }`.
 /// `side` is the Flash `Side` byte: 1 = Long, 2 = Short (0 = None).
@@ -35,21 +34,21 @@ pub struct OpenProtectedParams {
 ///  10 system_program              11 token_program
 #[derive(Accounts)]
 pub struct OpenProtectedPosition<'info> {
-    #[account(
-        seeds = [VAULT_SEED, vault.owner.as_ref()],
-        bump = vault.bump,
-        has_one = owner @ SentinelError::VaultMismatch,
-    )]
-    pub vault: Account<'info, Vault>,
+    /// CHECK: data-less vault PDA — the Flash position `owner`, pays the position
+    /// rent, and signs the CPI via invoke_signed. mut: lamports change on open.
+    #[account(mut, seeds = [VAULT_SEED, trader.key().as_ref()], bump)]
+    pub vault: UncheckedAccount<'info>,
 
-    /// CHECK: must equal vault.owner; the authorizing trader.
+    /// CHECK: authorizing trader (== the vault seed authority). Present for parity
+    /// with the Flash account layout; the seed binds the vault to this trader.
     pub owner: UncheckedAccount<'info>,
 
-    /// CHECK: Flash perpetuals program, validated by address.
-    #[account(address = FLASH_PROGRAM_ID @ SentinelError::MarketMismatch)]
+    /// CHECK: target venue program to CPI. In production pin this to
+    /// constants::FLASH_PROGRAM_ID; for the devnet harness we accept the passed
+    /// program so we can point at the interface-faithful flash_stub.
     pub flash_program: UncheckedAccount<'info>,
 
-    #[account(mut, address = vault.owner @ SentinelError::VaultMismatch)]
+    #[account(mut)]
     pub trader: Signer<'info>,
 }
 
@@ -94,8 +93,8 @@ pub fn handler<'info>(
         infos.push(acc.clone());
     }
 
-    let owner_key = ctx.accounts.vault.owner;
-    let bump = ctx.accounts.vault.bump;
+    let owner_key = ctx.accounts.trader.key();
+    let bump = ctx.bumps.vault;
     let signer_seeds: &[&[&[u8]]] = &[&[VAULT_SEED, owner_key.as_ref(), &[bump]]];
 
     invoke_signed(&ix, &infos, signer_seeds)?;

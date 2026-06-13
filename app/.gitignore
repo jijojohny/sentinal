@@ -1,0 +1,20 @@
+# Dependencies & build
+node_modules
+dist
+.vite
+*.tsbuildinfo
+
+# Secrets / keypairs — never commit
+.env
+.env.*
+!.env.example
+*-keypair.json
+*-wallet.json
+*.pem
+
+# Logs / OS / editor
+*.log
+.DS_Store
+.idea
+.vscode
+*.swp

@@ -29,10 +29,6 @@ declare_id!("DhQechQHWUwhtDfVCDa5oBjjeq955iB8YMNrH5TrTBPF");
 pub mod sentinel {
     use super::*;
 
-    pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
-        instructions::initialize_vault::handler(ctx)
-    }
-
     pub fn register_guard(ctx: Context<RegisterGuard>, params: RegisterGuardParams) -> Result<()> {
         instructions::register_guard::handler(ctx, params)
     }
@@ -68,5 +64,13 @@ pub mod sentinel {
         ctx: Context<'info, ExecuteProtection<'info>>,
     ) -> Result<()> {
         instructions::execute_protection::handler(ctx)
+    }
+
+    pub fn cancel_guard(ctx: Context<CancelGuard>) -> Result<()> {
+        instructions::cancel_guard::handler(ctx)
+    }
+
+    pub fn withdraw_vault(ctx: Context<WithdrawVault>) -> Result<()> {
+        instructions::withdraw_vault::handler(ctx)
     }
 }

@@ -1,18 +1,11 @@
 use anchor_lang::prelude::*;
 
-/// Per-trader vault. Its PDA is the *owner* of the Flash position, which is what
-/// lets Sentinel sign the protective close on the trader's behalf without ever
-/// holding the trader's wallet key.
-#[account]
-pub struct Vault {
-    pub owner: Pubkey, // the trader
-    pub guards: u32,   // number of guards created (telemetry)
-    pub bump: u8,      // PDA bump, used to invoke_signed Flash CPIs
-}
-
-impl Vault {
-    pub const LEN: usize = 8 + 32 + 4 + 1;
-}
+/// The per-trader vault is a *data-less* PDA at [VAULT_SEED, trader]. It owns the
+/// Flash position and signs the open/close CPIs via invoke_signed — but holds no
+/// account data, so it can also be the System `create_account` payer for the
+/// position (a data-carrying account cannot). It simply holds lamports (the
+/// trader's deposit) and is a deterministic signing authority. Metadata lives in
+/// GuardConfig, so there is no Vault account struct.
 
 /// The rule a guard enforces.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
@@ -21,6 +14,10 @@ pub enum RuleType {
     PriceBelow,
     /// Long take-profit / short stop-loss: fire when price >= trigger_price.
     PriceAbove,
+    /// Trailing stop: the crank ratchets `trigger_price` up to `price - trail_distance`
+    /// as the price rises (never down), then fires when price <= trigger_price. The
+    /// ratchet runs every tick, gaslessly, on-chain — the killer ER feature.
+    TrailingStop,
 }
 
 /// A guard: the rule + everything needed to rebuild the Flash close CPI.
@@ -33,9 +30,11 @@ pub struct GuardConfig {
     pub market: Pubkey, // Flash pool key, identifies the market + the price feed
     pub side: u8,       // Flash position side byte (0 = Long, 1 = Short)
     pub rule: RuleType,
-    pub trigger_price: u64,     // oracle-units price that trips the rule
+    pub trigger_price: u64,     // oracle-units price that trips the rule (ratchets for trailing)
+    pub trail_distance: u64,    // for TrailingStop: how far below the high the stop trails
     pub close_price_limit: u64, // slippage-protected price passed to Flash (ClosePositionParams.price)
     pub last_price: u64,        // most recent price seen by the crank (telemetry / demo)
+    pub high_water: u64,        // highest price seen (telemetry for trailing)
     pub triggered: bool,        // set by the ER crank when the rule trips
     pub executed: bool,         // set by execute_protection after the Flash close
     pub active: bool,           // false once executed or cancelled
@@ -43,12 +42,26 @@ pub struct GuardConfig {
 }
 
 impl GuardConfig {
-    pub const LEN: usize = 8 + 32 + 32 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1;
+    pub const LEN: usize = 8 + 32 + 32 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 1;
+
+    /// For a trailing stop, ratchet the trigger up as the price rises (never down).
+    /// Runs every crank tick — this is what makes the trailing stop fully on-chain.
+    pub fn ratchet(&mut self, price: u64) {
+        if price > self.high_water {
+            self.high_water = price;
+        }
+        if matches!(self.rule, RuleType::TrailingStop) && self.trail_distance > 0 {
+            let candidate = price.saturating_sub(self.trail_distance);
+            if candidate > self.trigger_price {
+                self.trigger_price = candidate;
+            }
+        }
+    }
 
     /// Evaluate the rule against an observed price.
     pub fn is_tripped(&self, price: u64) -> bool {
         match self.rule {
-            RuleType::PriceBelow => price <= self.trigger_price,
+            RuleType::PriceBelow | RuleType::TrailingStop => price <= self.trigger_price,
             RuleType::PriceAbove => price >= self.trigger_price,
         }
     }
