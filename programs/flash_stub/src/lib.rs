@@ -50,6 +50,31 @@ pub mod flash_stub {
         );
         Ok(())
     }
+
+    /// Matches Flash `add_collateral(params: AddCollateralParams)` — liquidation
+    /// defense. Increases the position's collateral instead of closing it.
+    pub fn add_collateral(ctx: Context<AddCollateral>, params: AddCollateralParams) -> Result<()> {
+        let position = &mut ctx.accounts.position;
+        position.collateral = position.collateral.saturating_add(params.collateral);
+        msg!(
+            "[flash_stub] add_collateral: owner={} +{} → collateral {}",
+            ctx.accounts.owner.key(),
+            params.collateral,
+            position.collateral
+        );
+        Ok(())
+    }
+
+    /// Partial close (scale-out): reduce the position size; close it once it hits 0.
+    pub fn decrease_position(ctx: Context<AddCollateral>, params: DecreaseParams) -> Result<()> {
+        let position = &mut ctx.accounts.position;
+        position.size = position.size.saturating_sub(params.size);
+        if position.size == 0 {
+            position.open = false;
+        }
+        msg!("[flash_stub] decrease_position: -{} → size {}", params.size, position.size);
+        Ok(())
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -63,6 +88,16 @@ pub struct OpenPositionParams {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct ClosePositionParams {
     pub price: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct AddCollateralParams {
+    pub collateral: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct DecreaseParams {
+    pub size: u64,
 }
 
 #[account]
@@ -119,6 +154,42 @@ pub struct OpenPosition<'info> {
     pub collateral_custody_token_account: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     /// CHECK: token program (unused in harness).
+    pub token_program: UncheckedAccount<'info>,
+}
+
+/// Account order mirrors Flash `AddCollateral` exactly (owner + 11): funding,
+/// transferAuth, perpetuals, pool, position, custody, custodyOracle, collCustody,
+/// collOracle, collTokenAcct, token. Position stays open (collateral increases).
+#[derive(Accounts)]
+pub struct AddCollateral<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    /// CHECK: funding account — unused in the harness.
+    #[account(mut)]
+    pub funding_account: UncheckedAccount<'info>,
+    /// CHECK: transfer authority.
+    pub transfer_authority: UncheckedAccount<'info>,
+    /// CHECK: perpetuals.
+    pub perpetuals: UncheckedAccount<'info>,
+    /// CHECK: pool.
+    #[account(mut)]
+    pub pool: UncheckedAccount<'info>,
+    #[account(mut, seeds = [b"position", owner.key().as_ref()], bump = position.bump, has_one = owner)]
+    pub position: Account<'info, Position>,
+    /// CHECK: custody.
+    #[account(mut)]
+    pub custody: UncheckedAccount<'info>,
+    /// CHECK: custody oracle.
+    pub custody_oracle: UncheckedAccount<'info>,
+    /// CHECK: collateral custody.
+    #[account(mut)]
+    pub collateral_custody: UncheckedAccount<'info>,
+    /// CHECK: collateral custody oracle.
+    pub collateral_custody_oracle: UncheckedAccount<'info>,
+    /// CHECK: collateral custody token account.
+    #[account(mut)]
+    pub collateral_custody_token_account: UncheckedAccount<'info>,
+    /// CHECK: token program (unused).
     pub token_program: UncheckedAccount<'info>,
 }
 

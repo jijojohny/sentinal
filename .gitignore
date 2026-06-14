@@ -21,13 +21,23 @@ pnpm-debug.log*
 !.env.example
 *.pem
 *.key
+*.p12
+*.keystore
 wallet.json
 id.json
 *-wallet.json
 # Any Solana keypair (program/wallet/validator) anywhere in the tree
 *-keypair.json
+keypair.json
 **/test-ledger/
 keypairs/
+# Mnemonics / seed phrases / generic secret dumps
+*.mnemonic
+mnemonic.txt
+seed.txt
+secret*.json
+secrets.json
+.secrets/
 
 # Dumped / large binaries (e.g. artifacts/flash_ref.so — reproducible via `solana program dump`)
 artifacts/

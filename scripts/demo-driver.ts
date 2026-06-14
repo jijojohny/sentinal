@@ -41,9 +41,11 @@ describe("demo-driver", () => {
   const traderKp = web3.Keypair.generate();
   const trader = traderKp.publicKey;
   const pda = (seeds: (Buffer | Uint8Array)[], pid: web3.PublicKey) => web3.PublicKey.findProgramAddressSync(seeds, pid)[0];
+  const GID = new BN(0);
+  const gidBuf = GID.toArrayLike(Buffer, "le", 8);
   const vault = pda([Buffer.from("vault"), trader.toBuffer()], sentinel.programId);
-  const guard = pda([Buffer.from("guard"), vault.toBuffer()], sentinel.programId);
-  const price = pda([Buffer.from("price"), vault.toBuffer()], sentinel.programId);
+  const guard = pda([Buffer.from("guard"), vault.toBuffer(), gidBuf], sentinel.programId);
+  const price = pda([Buffer.from("price"), vault.toBuffer(), gidBuf], sentinel.programId);
   const position = pda([Buffer.from("position"), vault.toBuffer()], venue.programId);
 
   const market = web3.Keypair.generate().publicKey;
@@ -103,8 +105,8 @@ describe("demo-driver", () => {
     // 2) Register the guard (stop @ $95).
     await R(() =>
       sentinel.methods
-        .registerGuard({ market, side: 1, rule: { priceBelow: {} }, triggerPrice: new BN(STOP), trailDistance: new BN(0), closePriceLimit: new BN(94_000_000), initialPrice: new BN(ENTRY) })
-        .accounts({ vault, guard, priceFeed: price, trader })
+        .registerGuard({ guardId: GID, market, side: 1, rule: { priceBelow: {} }, action: { close: {} }, kind: { protect: {} }, triggerPrice: new BN(STOP), trailDistance: new BN(0), tpPrice: new BN(0), breakevenOffset: new BN(0), expiryTs: new BN(0), marginAmount: new BN(0), keeperBounty: new BN(0), volK: new BN(0), entrySize: new BN(0), entryCollateral: new BN(0), tpLadder: [new BN(0), new BN(0), new BN(0)], bracketStop: new BN(0), settleDelay: new BN(0), closePriceLimit: new BN(94_000_000), initialPrice: new BN(ENTRY) })
+        .accounts({ authority: trader, vault, guard, priceFeed: price, payer: trader, sessionToken: null })
         .signers([traderKp])
         .rpc({ commitment: "confirmed" }),
     );

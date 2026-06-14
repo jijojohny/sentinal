@@ -9,6 +9,15 @@ pub const GUARD_SEED: &[u8] = b"guard";
 #[constant]
 pub const PRICE_SEED: &[u8] = b"price";
 
+#[constant]
+pub const STRATEGY_SEED: &[u8] = b"strategy";
+
+#[constant]
+pub const GRID_SEED: &[u8] = b"grid";
+
+#[constant]
+pub const PORTFOLIO_SEED: &[u8] = b"portfolio";
+
 /// Flash Trade perpetuals program id (flash-trade/flash-perpetuals).
 /// The Flash program is passed as an account to `execute_protection` and checked
 /// against this id; redeploys on localnet can override the check via the account.

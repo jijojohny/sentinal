@@ -39,9 +39,11 @@ describe("sentinel-settlement-local", () => {
   const traderKp = web3.Keypair.generate();
   const trader = traderKp.publicKey;
 
+  const GID = new BN(0);
+  const gidBuf = GID.toArrayLike(Buffer, "le", 8);
   const [vaultPDA] = web3.PublicKey.findProgramAddressSync([Buffer.from(VAULT_SEED), trader.toBuffer()], sentinel.programId);
-  const [guardPDA] = web3.PublicKey.findProgramAddressSync([Buffer.from(GUARD_SEED), vaultPDA.toBuffer()], sentinel.programId);
-  const [pricePDA] = web3.PublicKey.findProgramAddressSync([Buffer.from(PRICE_SEED), vaultPDA.toBuffer()], sentinel.programId);
+  const [guardPDA] = web3.PublicKey.findProgramAddressSync([Buffer.from(GUARD_SEED), vaultPDA.toBuffer(), gidBuf], sentinel.programId);
+  const [pricePDA] = web3.PublicKey.findProgramAddressSync([Buffer.from(PRICE_SEED), vaultPDA.toBuffer(), gidBuf], sentinel.programId);
   const [positionPDA] = web3.PublicKey.findProgramAddressSync([Buffer.from("position"), vaultPDA.toBuffer()], venue.programId);
 
   const market = web3.Keypair.generate().publicKey;
@@ -87,8 +89,8 @@ describe("sentinel-settlement-local", () => {
 
   it("guard trips when price crashes (one crank tick)", async () => {
     await sentinel.methods
-      .registerGuard({ market, side: 1, rule: { priceBelow: {} }, triggerPrice: STOP, trailDistance: new BN(0), closePriceLimit: new BN(94_000_000), initialPrice: ENTRY })
-      .accounts({ vault: vaultPDA, owner: trader, guard: guardPDA, priceFeed: pricePDA, trader })
+      .registerGuard({ guardId: GID, market, side: 1, rule: { priceBelow: {} }, action: { close: {} }, kind: { protect: {} }, triggerPrice: STOP, trailDistance: new BN(0), tpPrice: new BN(0), breakevenOffset: new BN(0), expiryTs: new BN(0), marginAmount: new BN(0), keeperBounty: new BN(0), volK: new BN(0), entrySize: new BN(0), entryCollateral: new BN(0), tpLadder: [new BN(0), new BN(0), new BN(0)], bracketStop: new BN(0), settleDelay: new BN(0), closePriceLimit: new BN(94_000_000), initialPrice: ENTRY })
+      .accounts({ authority: trader, vault: vaultPDA, guard: guardPDA, priceFeed: pricePDA, payer: trader, sessionToken: null })
       .signers([traderKp])
       .rpc({ commitment: "confirmed" });
 

@@ -21,9 +21,10 @@ describe("sentinel-trailing", () => {
   const traderKp = web3.Keypair.generate();
   const trader = traderKp.publicKey;
   const pda = (s: (Buffer | Uint8Array)[]) => web3.PublicKey.findProgramAddressSync(s, sentinel.programId)[0];
+  const gidBuf = new BN(0).toArrayLike(Buffer, "le", 8);
   const vault = pda([Buffer.from("vault"), trader.toBuffer()]);
-  const guard = pda([Buffer.from("guard"), vault.toBuffer()]);
-  const price = pda([Buffer.from("price"), vault.toBuffer()]);
+  const guard = pda([Buffer.from("guard"), vault.toBuffer(), gidBuf]);
+  const price = pda([Buffer.from("price"), vault.toBuffer(), gidBuf]);
   const market = web3.Keypair.generate().publicKey;
 
   const ENTRY = 100_000_000, TRAIL = 8_000_000;
@@ -44,8 +45,8 @@ describe("sentinel-trailing", () => {
 
   it("ratchets the stop up as price rises, fires on reversal", async () => {
     await sentinel.methods
-      .registerGuard({ market, side: 1, rule: { trailingStop: {} }, triggerPrice: new BN(ENTRY - TRAIL), trailDistance: new BN(TRAIL), closePriceLimit: new BN(0), initialPrice: new BN(ENTRY) })
-      .accounts({ vault, guard, priceFeed: price, trader })
+      .registerGuard({ guardId: new BN(0), market, side: 1, rule: { trailingStop: {} }, action: { close: {} }, kind: { protect: {} }, triggerPrice: new BN(ENTRY - TRAIL), trailDistance: new BN(TRAIL), tpPrice: new BN(0), breakevenOffset: new BN(0), expiryTs: new BN(0), marginAmount: new BN(0), keeperBounty: new BN(0), volK: new BN(0), entrySize: new BN(0), entryCollateral: new BN(0), tpLadder: [new BN(0), new BN(0), new BN(0)], bracketStop: new BN(0), settleDelay: new BN(0), closePriceLimit: new BN(0), initialPrice: new BN(ENTRY) })
+      .accounts({ authority: trader, vault, guard, priceFeed: price, payer: trader, sessionToken: null })
       .signers([traderKp])
       .rpc({ commitment: "confirmed" });
 

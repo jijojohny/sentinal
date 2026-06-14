@@ -7,12 +7,24 @@ use sha2::{Digest, Sha256};
 
 use crate::constants::VAULT_SEED;
 use crate::error::SentinelError;
-use crate::state::GuardConfig;
+use crate::state::{ActionType, GuardConfig};
 
 /// Slippage-protected price arg expected by Flash `close_position`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct ClosePositionParams {
     pub price: u64,
+}
+
+/// Collateral arg expected by Flash `add_collateral` (liquidation defense).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct AddCollateralParams {
+    pub collateral: u64,
+}
+
+/// Size arg for the venue partial close (scale-out ladders).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
+pub struct DecreaseParams {
+    pub size: u64,
 }
 
 /// The settlement leg, on the base layer. Permissionless: anyone may submit it,
@@ -50,9 +62,11 @@ pub struct ExecuteProtection<'info> {
     /// program so we can point at the interface-faithful flash_stub.
     pub flash_program: UncheckedAccount<'info>,
 
-    /// Anyone can pay/submit; carries no authority.
+    /// Anyone can pay/submit; carries no authority. Earns `keeper_bounty`.
     #[account(mut)]
     pub cranker: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 pub fn handler<'info>(ctx: Context<'info, ExecuteProtection<'info>>) -> Result<()> {
@@ -60,21 +74,34 @@ pub fn handler<'info>(ctx: Context<'info, ExecuteProtection<'info>>) -> Result<(
     require!(guard.active, SentinelError::GuardInactive);
     require!(guard.triggered, SentinelError::NotTriggered);
     require!(!guard.executed, SentinelError::AlreadyExecuted);
+    if guard.settle_after_ts > 0 {
+        require!(Clock::get()?.unix_timestamp >= guard.settle_after_ts, SentinelError::SettleLocked);
+    }
 
     let flash_accounts = ctx.remaining_accounts;
     require!(flash_accounts.len() >= 11, SentinelError::NotEnoughAccounts);
 
-    // Anchor instruction discriminator: sha256("global:close_position")[..8].
+    // Branch on guard mode — all three Flash instructions share the same owner + 11-account
+    // layout + writable mask; only the discriminator + params differ.
+    //   ladder      → decrease_position (partial scale-out, re-arms for the next rung)
+    //   add_margin  → add_collateral    (liquidation defense)
+    //   else        → close_position
+    let rungs = guard.ladder_rungs();
+    let ladder = rungs > 0;
+    let add_margin = !ladder && matches!(guard.action, ActionType::AddMargin);
+    let disc_seed: &[u8] = if ladder { b"global:decrease_position" } else if add_margin { b"global:add_collateral" } else { b"global:close_position" };
+    let mut data = Vec::with_capacity(16);
     let mut disc = [0u8; 8];
-    let hash = Sha256::digest(b"global:close_position");
-    disc.copy_from_slice(&hash[..8]);
-
-    let mut data = Vec::with_capacity(8 + 8);
+    disc.copy_from_slice(&Sha256::digest(disc_seed)[..8]);
     data.extend_from_slice(&disc);
-    ClosePositionParams {
-        price: guard.close_price_limit,
+    if ladder {
+        let chunk = guard.entry_size / (rungs as u64).max(1);
+        DecreaseParams { size: chunk }.serialize(&mut data)?;
+    } else if add_margin {
+        AddCollateralParams { collateral: guard.margin_amount }.serialize(&mut data)?;
+    } else {
+        ClosePositionParams { price: guard.close_price_limit }.serialize(&mut data)?;
     }
-    .serialize(&mut data)?;
 
     // owner (vault PDA) is the signer; the rest mirror ClosePosition's account order.
     let mut metas = Vec::with_capacity(12);
@@ -107,8 +134,46 @@ pub fn handler<'info>(ctx: Context<'info, ExecuteProtection<'info>>) -> Result<(
 
     invoke_signed(&ix, &infos, signer_seeds)?;
 
-    guard.executed = true;
-    guard.active = false;
-    msg!("Protection executed: Flash position closed by Sentinel vault");
+    if ladder {
+        // Scale-out: this rung is done; re-arm for the next, or finish on the last.
+        guard.ladder_done += 1;
+        if guard.ladder_done < rungs {
+            guard.triggered = false;
+            guard.trip_reason = crate::state::TRIP_NONE;
+            guard.settle_after_ts = 0; // re-arm: next rung recomputes its own anti-MEV lock
+            msg!("Ladder rung {} of {} closed; re-armed for next", guard.ladder_done, rungs);
+        } else {
+            guard.executed = true;
+            guard.active = false;
+        }
+    } else {
+        guard.executed = true;
+        guard.active = false;
+    }
+
+    // Incentivized keeper: pay the cranker a bounty from the vault (permissionless + reliably live).
+    let bounty = guard.keeper_bounty;
+    if bounty > 0 && ctx.accounts.vault.lamports() > bounty {
+        let pay = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.vault.key(),
+            &ctx.accounts.cranker.key(),
+            bounty,
+        );
+        invoke_signed(
+            &pay,
+            &[
+                ctx.accounts.vault.to_account_info(),
+                ctx.accounts.cranker.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+            signer_seeds,
+        )?;
+        msg!("Keeper bounty paid: {} lamports → {}", bounty, ctx.accounts.cranker.key());
+    }
+    if add_margin {
+        msg!("Protection executed: margin added to defend the position (one-shot)");
+    } else {
+        msg!("Protection executed: Flash position closed by Sentinel vault");
+    }
     Ok(())
 }

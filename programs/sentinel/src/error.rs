@@ -16,4 +16,8 @@ pub enum SentinelError {
     MarketMismatch,
     #[msg("Not enough accounts supplied for the Flash close CPI")]
     NotEnoughAccounts,
+    #[msg("Wrong guard kind for this instruction")]
+    WrongKind,
+    #[msg("Settlement is time-locked (anti-MEV delay not elapsed)")]
+    SettleLocked,
 }

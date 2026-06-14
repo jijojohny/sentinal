@@ -61,15 +61,29 @@ describe("sentinel-er-flow", () => {
   it("register guard: long stop-loss at $95 (base layer)", async () => {
     await program.methods
       .registerGuard({
+        guardId: new BN(0),
         market,
         side: 1, // Flash Side::Long (None=0, Long=1, Short=2)
         rule: { priceBelow: {} },
+        action: { close: {} },
+        kind: { protect: {} },
         triggerPrice: STOP,
         trailDistance: new BN(0),
-        closePriceLimit: new BN(94_000_000), // allow some slippage on close
+        tpPrice: new BN(0),
+        breakevenOffset: new BN(0),
+        expiryTs: new BN(0),
+        marginAmount: new BN(0),
+        keeperBounty: new BN(0),
+        volK: new BN(0),
+        entrySize: new BN(0),
+        entryCollateral: new BN(0),
+        tpLadder: [new BN(0), new BN(0), new BN(0)],
+        bracketStop: new BN(0),
+        settleDelay: new BN(0),
+        closePriceLimit: new BN(94_000_000),
         initialPrice: ENTRY,
       })
-      .accounts({ vault: vaultPDA, owner: trader, guard: guardPDA, priceFeed: pricePDA, trader })
+      .accounts({ authority: trader, vault: vaultPDA, guard: guardPDA, priceFeed: pricePDA, payer: trader, sessionToken: null })
       .rpc({ skipPreflight: true, commitment: "confirmed" });
     const guard = await program.account.guardConfig.fetch(guardPDA);
     assert.equal(guard.triggered, false);
@@ -89,7 +103,7 @@ describe("sentinel-er-flow", () => {
       ? [{ pubkey: validator, isSigner: false, isWritable: false }]
       : [];
     await program.methods
-      .delegateGuard()
+      .delegateGuard(new BN(0))
       .accounts({ payer: trader })
       .remainingAccounts(remaining)
       .rpc({ skipPreflight: true, commitment: "confirmed" });

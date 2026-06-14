@@ -1,0 +1,2856 @@
+{
+  "address": "DhQechQHWUwhtDfVCDa5oBjjeq955iB8YMNrH5TrTBPF",
+  "metadata": {
+    "name": "sentinel",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "docs": [
+    "Sentinel — a non-custodial, on-chain liquidation & stop-loss guardian for",
+    "Flash Trade, powered by MagicBlock Ephemeral Rollups.",
+    "",
+    "Flow:",
+    "1. initialize_vault   (base)  — vault PDA becomes the Flash position owner",
+    "2. register_guard     (base)  — store the rule + create the price feed",
+    "3. delegate_guard     (base)  — delegate guard + price feed to the rollup",
+    "4. schedule_monitor   (rollup)— schedule the crank: no server from here on",
+    "5. push_price         (rollup)— Pyth Lazer / demo feed updates, gasless",
+    "6. evaluate           (rollup)— crank flips `triggered` when the rule trips",
+    "7. commit_guard       (rollup)— commit + undelegate the triggered guard",
+    "8. execute_protection (base)  — permissionless CPI to Flash close_position"
+  ],
+  "instructions": [
+    {
+      "name": "cancel_guard",
+      "discriminator": [
+        148,
+        33,
+        185,
+        153,
+        73,
+        82,
+        44,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "trader"
+              }
+            ]
+          }
+        },
+        {
+          "name": "guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  117,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "trader",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "guard_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "commit_guard",
+      "discriminator": [
+        27,
+        100,
+        215,
+        12,
+        41,
+        202,
+        18,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "guard",
+          "writable": true
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magic_context",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegate_grid",
+      "discriminator": [
+        80,
+        135,
+        119,
+        120,
+        3,
+        76,
+        34,
+        145
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buffer_grid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                188,
+                166,
+                55,
+                8,
+                92,
+                196,
+                95,
+                97,
+                21,
+                39,
+                120,
+                117,
+                120,
+                2,
+                171,
+                71,
+                3,
+                209,
+                228,
+                187,
+                121,
+                246,
+                86,
+                202,
+                201,
+                65,
+                126,
+                117,
+                168,
+                139,
+                46,
+                210
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_grid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_grid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "grid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "grid_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buffer_grid_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid_feed"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                188,
+                166,
+                55,
+                8,
+                92,
+                196,
+                95,
+                97,
+                21,
+                39,
+                120,
+                117,
+                120,
+                2,
+                171,
+                71,
+                3,
+                209,
+                228,
+                187,
+                121,
+                246,
+                86,
+                202,
+                201,
+                65,
+                126,
+                117,
+                168,
+                139,
+                46,
+                210
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_grid_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid_feed"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_grid_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid_feed"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "grid_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_program",
+          "address": "DhQechQHWUwhtDfVCDa5oBjjeq955iB8YMNrH5TrTBPF"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "grid_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "delegate_guard",
+      "discriminator": [
+        248,
+        166,
+        227,
+        181,
+        81,
+        195,
+        208,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buffer_guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "guard"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                188,
+                166,
+                55,
+                8,
+                92,
+                196,
+                95,
+                97,
+                21,
+                39,
+                120,
+                117,
+                120,
+                2,
+                171,
+                71,
+                3,
+                209,
+                228,
+                187,
+                121,
+                246,
+                86,
+                202,
+                201,
+                65,
+                126,
+                117,
+                168,
+                139,
+                46,
+                210
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "guard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "guard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  117,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buffer_price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "price_feed"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                188,
+                166,
+                55,
+                8,
+                92,
+                196,
+                95,
+                97,
+                21,
+                39,
+                120,
+                117,
+                120,
+                2,
+                171,
+                71,
+                3,
+                209,
+                228,
+                187,
+                121,
+                246,
+                86,
+                202,
+                201,
+                65,
+                126,
+                117,
+                168,
+                139,
+                46,
+                210
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "price_feed"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "price_feed"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_program",
+          "address": "DhQechQHWUwhtDfVCDa5oBjjeq955iB8YMNrH5TrTBPF"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "guard_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "enforce_drawdown",
+      "discriminator": [
+        118,
+        202,
+        184,
+        66,
+        100,
+        69,
+        143,
+        246
+      ],
+      "accounts": [
+        {
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "portfolio.owner",
+                "account": "PortfolioGuard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "cranker",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "evaluate",
+      "discriminator": [
+        179,
+        211,
+        142,
+        183,
+        108,
+        104,
+        20,
+        214
+      ],
+      "accounts": [
+        {
+          "name": "guard",
+          "writable": true
+        },
+        {
+          "name": "price_feed"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "execute_entry",
+      "discriminator": [
+        234,
+        94,
+        119,
+        215,
+        224,
+        40,
+        70,
+        18
+      ],
+      "accounts": [
+        {
+          "name": "guard",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "guard.owner",
+                "account": "GuardConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "flash_program"
+        },
+        {
+          "name": "cranker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "execute_protection",
+      "discriminator": [
+        236,
+        135,
+        134,
+        214,
+        144,
+        192,
+        14,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "guard",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "closed rent/proceeds. mut: lamports change on close. Bound to guard.owner",
+            "via seeds, and cross-checked against guard.vault below."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "guard.owner",
+                "account": "GuardConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "flash_program",
+          "docs": [
+            "constants::FLASH_PROGRAM_ID; for the devnet harness we accept the passed",
+            "program so we can point at the interface-faithful flash_stub."
+          ]
+        },
+        {
+          "name": "cranker",
+          "docs": [
+            "Anyone can pay/submit; carries no authority. Earns `keeper_bounty`."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "follow_strategy",
+      "discriminator": [
+        7,
+        84,
+        203,
+        84,
+        72,
+        62,
+        123,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "strategy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "strategy.leader",
+                "account": "Strategy"
+              },
+              {
+                "kind": "account",
+                "path": "strategy.strategy_id",
+                "account": "Strategy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "follower"
+              }
+            ]
+          }
+        },
+        {
+          "name": "guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  117,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "params.guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "params.guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "follower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "leader",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "FollowStrategyParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "grid_step",
+      "discriminator": [
+        87,
+        125,
+        4,
+        40,
+        118,
+        222,
+        232,
+        0
+      ],
+      "accounts": [
+        {
+          "name": "grid",
+          "writable": true
+        },
+        {
+          "name": "grid_feed"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_grid",
+      "discriminator": [
+        4,
+        252,
+        168,
+        190,
+        130,
+        91,
+        0,
+        196
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "trader"
+              }
+            ]
+          }
+        },
+        {
+          "name": "grid",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  105,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "params.grid_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "grid_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "grid"
+              }
+            ]
+          }
+        },
+        {
+          "name": "trader",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitGridParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_portfolio",
+      "discriminator": [
+        66,
+        109,
+        113,
+        230,
+        155,
+        182,
+        227,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "max_drawdown_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "open_protected_position",
+      "discriminator": [
+        202,
+        122,
+        43,
+        135,
+        188,
+        24,
+        112,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "docs": [
+            "rent, and signs the CPI via invoke_signed. mut: lamports change on open."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "trader"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "docs": [
+            "with the Flash account layout; the seed binds the vault to this trader."
+          ]
+        },
+        {
+          "name": "flash_program",
+          "docs": [
+            "constants::FLASH_PROGRAM_ID; for the devnet harness we accept the passed",
+            "program so we can point at the interface-faithful flash_stub."
+          ]
+        },
+        {
+          "name": "trader",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "OpenProtectedParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "process_undelegation",
+      "discriminator": [
+        196,
+        28,
+        41,
+        206,
+        48,
+        37,
+        51,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "base_account",
+          "writable": true
+        },
+        {
+          "name": "buffer"
+        },
+        {
+          "name": "payer",
+          "writable": true
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "account_seeds",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "publish_strategy",
+      "discriminator": [
+        175,
+        32,
+        18,
+        64,
+        124,
+        202,
+        89,
+        6
+      ],
+      "accounts": [
+        {
+          "name": "strategy",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "leader"
+              },
+              {
+                "kind": "arg",
+                "path": "params.strategy_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "leader",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "PublishStrategyParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "push_price",
+      "discriminator": [
+        113,
+        238,
+        232,
+        235,
+        60,
+        71,
+        127,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "price_feed",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "price",
+          "type": "u64"
+        },
+        {
+          "name": "ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "push_price_from_pyth",
+      "discriminator": [
+        124,
+        89,
+        193,
+        141,
+        127,
+        46,
+        175,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "price_feed",
+          "writable": true
+        },
+        {
+          "name": "pyth_price_update"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "register_guard",
+      "discriminator": [
+        249,
+        111,
+        173,
+        255,
+        67,
+        171,
+        37,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "authority"
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "guard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  117,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "params.guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_feed",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "arg",
+                "path": "params.guard_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "The actor paying + signing — the wallet itself, or a scoped session key."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "session_token",
+          "docs": [
+            "Optional session token authorizing `payer` to act for `authority`."
+          ],
+          "optional": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "RegisterGuardParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "schedule_grid",
+      "discriminator": [
+        61,
+        17,
+        208,
+        234,
+        60,
+        158,
+        225,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "magic_program"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "grid",
+          "writable": true
+        },
+        {
+          "name": "grid_feed"
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "ScheduleGridArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "schedule_monitor",
+      "discriminator": [
+        216,
+        171,
+        138,
+        179,
+        114,
+        51,
+        114,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "magic_program"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "guard",
+          "writable": true
+        },
+        {
+          "name": "price_feed"
+        },
+        {
+          "name": "program"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "ScheduleMonitorArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "stop_grid",
+      "discriminator": [
+        40,
+        27,
+        210,
+        68,
+        199,
+        11,
+        138,
+        180
+      ],
+      "accounts": [
+        {
+          "name": "grid",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "grid"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw_vault",
+      "discriminator": [
+        135,
+        7,
+        237,
+        120,
+        149,
+        94,
+        95,
+        7
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "trader"
+              }
+            ]
+          }
+        },
+        {
+          "name": "trader",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GridConfig",
+      "discriminator": [
+        106,
+        7,
+        228,
+        55,
+        60,
+        115,
+        108,
+        150
+      ]
+    },
+    {
+      "name": "GuardConfig",
+      "discriminator": [
+        95,
+        175,
+        118,
+        50,
+        193,
+        113,
+        37,
+        250
+      ]
+    },
+    {
+      "name": "PortfolioGuard",
+      "discriminator": [
+        73,
+        100,
+        168,
+        167,
+        117,
+        35,
+        77,
+        127
+      ]
+    },
+    {
+      "name": "PriceFeed",
+      "discriminator": [
+        189,
+        103,
+        252,
+        23,
+        152,
+        35,
+        243,
+        156
+      ]
+    },
+    {
+      "name": "Strategy",
+      "discriminator": [
+        174,
+        110,
+        39,
+        119,
+        82,
+        106,
+        169,
+        102
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "GuardInactive",
+      "msg": "Guard is not active"
+    },
+    {
+      "code": 6001,
+      "name": "NotTriggered",
+      "msg": "Guard rule has not been triggered yet"
+    },
+    {
+      "code": 6002,
+      "name": "AlreadyExecuted",
+      "msg": "Guard has already been executed"
+    },
+    {
+      "code": 6003,
+      "name": "BadPrice",
+      "msg": "Price feed is stale or zero"
+    },
+    {
+      "code": 6004,
+      "name": "VaultMismatch",
+      "msg": "Wrong vault authority for this guard"
+    },
+    {
+      "code": 6005,
+      "name": "MarketMismatch",
+      "msg": "Provided Flash accounts do not match the guard's market"
+    },
+    {
+      "code": 6006,
+      "name": "NotEnoughAccounts",
+      "msg": "Not enough accounts supplied for the Flash close CPI"
+    },
+    {
+      "code": 6007,
+      "name": "WrongKind",
+      "msg": "Wrong guard kind for this instruction"
+    },
+    {
+      "code": 6008,
+      "name": "SettleLocked",
+      "msg": "Settlement is time-locked (anti-MEV delay not elapsed)"
+    }
+  ],
+  "types": [
+    {
+      "name": "ActionType",
+      "docs": [
+        "What the guard does when it trips."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Close"
+          },
+          {
+            "name": "AddMargin"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FollowStrategyParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "guard_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "initial_price",
+            "type": "u64"
+          },
+          {
+            "name": "close_price_limit",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GridConfig",
+      "docs": [
+        "An autonomous grid / DCA bot config. Delegated to the ER and ticked by a",
+        "scheduled crank: every tick it computes which grid level the price is in and",
+        "records a \"fill\" when the level changes — the bot's decisions run entirely",
+        "on-chain in the rollup, gaslessly, with no server. (Rung execution on Flash",
+        "reuses the vault CPI path, same as `execute_protection`.)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "grid_id",
+            "type": "u64"
+          },
+          {
+            "name": "lower",
+            "type": "u64"
+          },
+          {
+            "name": "upper",
+            "type": "u64"
+          },
+          {
+            "name": "levels",
+            "type": "u8"
+          },
+          {
+            "name": "order_size",
+            "type": "u64"
+          },
+          {
+            "name": "mode",
+            "type": "u8"
+          },
+          {
+            "name": "interval_ticks",
+            "type": "u32"
+          },
+          {
+            "name": "tick_count",
+            "type": "u32"
+          },
+          {
+            "name": "last_level",
+            "type": "i16"
+          },
+          {
+            "name": "last_price",
+            "type": "u64"
+          },
+          {
+            "name": "fills",
+            "type": "u32"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GuardConfig",
+      "docs": [
+        "A guard: the rule + everything needed to rebuild the Flash CPI. This is the",
+        "account delegated to the Ephemeral Rollup and ticked by the on-chain crank —",
+        "no server watches the price, the rollup does. One vault can own many guards",
+        "(keyed by `guard_id`) → a portfolio of protected positions."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "guard_id",
+            "type": "u64"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "rule",
+            "type": {
+              "defined": {
+                "name": "RuleType"
+              }
+            }
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "ActionType"
+              }
+            }
+          },
+          {
+            "name": "entry_price",
+            "type": "u64"
+          },
+          {
+            "name": "trigger_price",
+            "type": "u64"
+          },
+          {
+            "name": "trail_distance",
+            "type": "u64"
+          },
+          {
+            "name": "tp_price",
+            "type": "u64"
+          },
+          {
+            "name": "breakeven_offset",
+            "type": "u64"
+          },
+          {
+            "name": "expiry_ts",
+            "type": "i64"
+          },
+          {
+            "name": "margin_amount",
+            "type": "u64"
+          },
+          {
+            "name": "close_price_limit",
+            "type": "u64"
+          },
+          {
+            "name": "last_price",
+            "type": "u64"
+          },
+          {
+            "name": "high_water",
+            "type": "u64"
+          },
+          {
+            "name": "triggered",
+            "type": "bool"
+          },
+          {
+            "name": "executed",
+            "type": "bool"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "breakeven_armed",
+            "type": "bool"
+          },
+          {
+            "name": "trip_reason",
+            "type": "u8"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "GuardKind"
+              }
+            }
+          },
+          {
+            "name": "keeper_bounty",
+            "type": "u64"
+          },
+          {
+            "name": "vol_k",
+            "type": "u64"
+          },
+          {
+            "name": "entry_size",
+            "type": "u64"
+          },
+          {
+            "name": "entry_collateral",
+            "type": "u64"
+          },
+          {
+            "name": "tp_ladder",
+            "type": {
+              "array": [
+                "u64",
+                3
+              ]
+            }
+          },
+          {
+            "name": "ladder_done",
+            "type": "u8"
+          },
+          {
+            "name": "bracket_stop",
+            "type": "u64"
+          },
+          {
+            "name": "settle_delay",
+            "type": "i64"
+          },
+          {
+            "name": "settle_after_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GuardKind",
+      "docs": [
+        "Whether a guard protects an existing position or is a pending limit ENTRY."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Protect"
+          },
+          {
+            "name": "Entry"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitGridParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "grid_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "lower",
+            "type": "u64"
+          },
+          {
+            "name": "upper",
+            "type": "u64"
+          },
+          {
+            "name": "levels",
+            "type": "u8"
+          },
+          {
+            "name": "order_size",
+            "type": "u64"
+          },
+          {
+            "name": "mode",
+            "type": "u8"
+          },
+          {
+            "name": "interval_ticks",
+            "type": "u32"
+          },
+          {
+            "name": "initial_price",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OpenProtectedParams",
+      "docs": [
+        "Mirrors Flash `OpenPositionParams { price, collateral, size, side }`.",
+        "`side` is the Flash `Side` byte: 1 = Long, 2 = Short (0 = None)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "collateral",
+            "type": "u64"
+          },
+          {
+            "name": "size",
+            "type": "u64"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PortfolioGuard",
+      "docs": [
+        "Per-vault portfolio risk guard: close ALL positions if aggregate equity drops",
+        "more than `max_drawdown_bps` from its high-water mark."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_drawdown_bps",
+            "type": "u16"
+          },
+          {
+            "name": "peak_equity",
+            "type": "u64"
+          },
+          {
+            "name": "last_equity",
+            "type": "u64"
+          },
+          {
+            "name": "breached",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceFeed",
+      "docs": [
+        "A lightweight price feed account, owned by Sentinel and delegated to the ER",
+        "alongside the guard. In production this is fed by Pyth Lazer (sub-ms updates);",
+        "for the demo a price-pusher writes into it gaslessly inside the rollup."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "price",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          },
+          {
+            "name": "samples",
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          },
+          {
+            "name": "head",
+            "type": "u8"
+          },
+          {
+            "name": "filled",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PublishStrategyParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "strategy_id",
+            "type": "u64"
+          },
+          {
+            "name": "rule",
+            "type": {
+              "defined": {
+                "name": "RuleType"
+              }
+            }
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "ActionType"
+              }
+            }
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "stop_offset",
+            "type": "u64"
+          },
+          {
+            "name": "tp_offset",
+            "type": "u64"
+          },
+          {
+            "name": "trail_distance",
+            "type": "u64"
+          },
+          {
+            "name": "breakeven_offset",
+            "type": "u64"
+          },
+          {
+            "name": "margin_amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RegisterGuardParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "guard_id",
+            "type": "u64"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "rule",
+            "type": {
+              "defined": {
+                "name": "RuleType"
+              }
+            }
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "ActionType"
+              }
+            }
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "GuardKind"
+              }
+            }
+          },
+          {
+            "name": "trigger_price",
+            "type": "u64"
+          },
+          {
+            "name": "trail_distance",
+            "type": "u64"
+          },
+          {
+            "name": "tp_price",
+            "type": "u64"
+          },
+          {
+            "name": "breakeven_offset",
+            "type": "u64"
+          },
+          {
+            "name": "expiry_ts",
+            "type": "i64"
+          },
+          {
+            "name": "margin_amount",
+            "type": "u64"
+          },
+          {
+            "name": "keeper_bounty",
+            "type": "u64"
+          },
+          {
+            "name": "vol_k",
+            "type": "u64"
+          },
+          {
+            "name": "entry_size",
+            "type": "u64"
+          },
+          {
+            "name": "entry_collateral",
+            "type": "u64"
+          },
+          {
+            "name": "tp_ladder",
+            "type": {
+              "array": [
+                "u64",
+                3
+              ]
+            }
+          },
+          {
+            "name": "bracket_stop",
+            "type": "u64"
+          },
+          {
+            "name": "settle_delay",
+            "type": "i64"
+          },
+          {
+            "name": "close_price_limit",
+            "type": "u64"
+          },
+          {
+            "name": "initial_price",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RuleType",
+      "docs": [
+        "The per-trader vault is a *data-less* PDA at [VAULT_SEED, trader]. It owns the",
+        "Flash position and signs the open/close CPIs via invoke_signed — but holds no",
+        "account data, so it can also be the System `create_account` payer for the",
+        "position (a data-carrying account cannot). It simply holds lamports (the",
+        "trader's deposit) and is a deterministic signing authority. Metadata lives in",
+        "GuardConfig, so there is no Vault account struct.",
+        "The rule a guard enforces."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "PriceBelow"
+          },
+          {
+            "name": "PriceAbove"
+          },
+          {
+            "name": "TrailingStop"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScheduleGridArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "task_id",
+            "type": "i64"
+          },
+          {
+            "name": "execution_interval_millis",
+            "type": "i64"
+          },
+          {
+            "name": "iterations",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScheduleMonitorArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "task_id",
+            "type": "i64"
+          },
+          {
+            "name": "execution_interval_millis",
+            "type": "i64"
+          },
+          {
+            "name": "iterations",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionTokenV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "target_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_signer",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "valid_until",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Strategy",
+      "docs": [
+        "A published copy-trading strategy: a leader's guard *template* expressed as",
+        "offsets from entry (so each follower's guard adapts to their own entry price)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "leader",
+            "type": "pubkey"
+          },
+          {
+            "name": "strategy_id",
+            "type": "u64"
+          },
+          {
+            "name": "rule",
+            "type": {
+              "defined": {
+                "name": "RuleType"
+              }
+            }
+          },
+          {
+            "name": "action",
+            "type": {
+              "defined": {
+                "name": "ActionType"
+              }
+            }
+          },
+          {
+            "name": "side",
+            "type": "u8"
+          },
+          {
+            "name": "stop_offset",
+            "type": "u64"
+          },
+          {
+            "name": "tp_offset",
+            "type": "u64"
+          },
+          {
+            "name": "trail_distance",
+            "type": "u64"
+          },
+          {
+            "name": "breakeven_offset",
+            "type": "u64"
+          },
+          {
+            "name": "margin_amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "followers",
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "FLASH_PROGRAM_ID",
+      "docs": [
+        "Flash Trade perpetuals program id (flash-trade/flash-perpetuals).",
+        "The Flash program is passed as an account to `execute_protection` and checked",
+        "against this id; redeploys on localnet can override the check via the account."
+      ],
+      "type": "pubkey",
+      "value": "Bmr31xzZYYVUdoHmAJL1DAp2anaitW8Tw9YfASS94MKJ"
+    },
+    {
+      "name": "GRID_SEED",
+      "type": "bytes",
+      "value": "[103, 114, 105, 100]"
+    },
+    {
+      "name": "GUARD_SEED",
+      "type": "bytes",
+      "value": "[103, 117, 97, 114, 100]"
+    },
+    {
+      "name": "PORTFOLIO_SEED",
+      "type": "bytes",
+      "value": "[112, 111, 114, 116, 102, 111, 108, 105, 111]"
+    },
+    {
+      "name": "PRICE_SEED",
+      "type": "bytes",
+      "value": "[112, 114, 105, 99, 101]"
+    },
+    {
+      "name": "STRATEGY_SEED",
+      "type": "bytes",
+      "value": "[115, 116, 114, 97, 116, 101, 103, 121]"
+    },
+    {
+      "name": "VAULT_SEED",
+      "type": "bytes",
+      "value": "[118, 97, 117, 108, 116]"
+    }
+  ]
+}

@@ -16,5 +16,6 @@ pub fn handler(ctx: Context<PushPrice>, price: u64, ts: i64) -> Result<()> {
     let feed = &mut ctx.accounts.price_feed;
     feed.price = price;
     feed.ts = ts;
+    feed.record(price);
     Ok(())
 }

@@ -9,8 +9,15 @@ dist
 .env.*
 !.env.example
 *-keypair.json
+keypair.json
 *-wallet.json
+wallet.json
+id.json
 *.pem
+*.key
+*.mnemonic
+secret*.json
+secrets.json
 
 # Logs / OS / editor
 *.log

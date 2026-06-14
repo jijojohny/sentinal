@@ -32,17 +32,33 @@ export function decodePriceFeed(data: Uint8Array | null): PriceFeed | null {
   return { price: u64(dv, 40) };
 }
 
-export type Guard = { lastPrice: number; triggerPrice: number; triggered: boolean; executed: boolean; active: boolean };
+export type Guard = {
+  entryPrice: number;
+  triggerPrice: number;
+  tpPrice: number;
+  lastPrice: number;
+  triggered: boolean;
+  executed: boolean;
+  active: boolean;
+  tripReason: number; // 0 none, 1 stop, 2 take-profit, 3 time
+};
 export function decodeGuard(data: Uint8Array | null): Guard | null {
-  if (!data || data.length < 134) return null;
+  // GuardConfig v2 layout (after 8-byte disc):
+  // vault@8 owner@40 market@72 guard_id@104 side@112 rule@113 action@114
+  // entry@115 trigger@123 trail@131 tp@139 breakeven_off@147 expiry@155
+  // margin@163 close_limit@171 last@179 high@187 triggered@195 executed@196
+  // active@197 breakeven_armed@198 trip_reason@199 bump@200
+  if (!data || data.length < 201) return null;
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  // disc8, vault32, owner32, market32, side1, rule1, trigger_price@106, close@114, last@122, triggered@130, executed131, active132
   return {
-    triggerPrice: u64(dv, 106),
-    lastPrice: u64(dv, 122),
-    triggered: data[130] === 1,
-    executed: data[131] === 1,
-    active: data[132] === 1,
+    entryPrice: u64(dv, 115),
+    triggerPrice: u64(dv, 123),
+    tpPrice: u64(dv, 139),
+    lastPrice: u64(dv, 179),
+    triggered: data[195] === 1,
+    executed: data[196] === 1,
+    active: data[197] === 1,
+    tripReason: data[199],
   };
 }
 

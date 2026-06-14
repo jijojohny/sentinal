@@ -121,13 +121,13 @@ describe("sentinel-settlement-slice", () => {
 
   it("register guard (stop @ $95) + delegate to the rollup", async () => {
     await sentinel.methods
-      .registerGuard({ market, side: 1, rule: { priceBelow: {} }, triggerPrice: STOP, trailDistance: new BN(0), closePriceLimit: new BN(94_000_000), initialPrice: ENTRY })
-      .accounts({ vault: vaultPDA, owner: trader.publicKey, guard: guardPDA, priceFeed: pricePDA, trader: trader.publicKey })
+      .registerGuard({ guardId: new BN(0), market, side: 1, rule: { priceBelow: {} }, action: { close: {} }, kind: { protect: {} }, triggerPrice: STOP, trailDistance: new BN(0), tpPrice: new BN(0), breakevenOffset: new BN(0), expiryTs: new BN(0), marginAmount: new BN(0), keeperBounty: new BN(0), volK: new BN(0), entrySize: new BN(0), entryCollateral: new BN(0), tpLadder: [new BN(0), new BN(0), new BN(0)], bracketStop: new BN(0), settleDelay: new BN(0), closePriceLimit: new BN(94_000_000), initialPrice: ENTRY })
+      .accounts({ authority: trader.publicKey, vault: vaultPDA, guard: guardPDA, priceFeed: pricePDA, payer: trader.publicKey, sessionToken: null })
       .signers([trader])
       .rpc({ skipPreflight: true, commitment: "confirmed" });
 
     await sentinel.methods
-      .delegateGuard()
+      .delegateGuard(new BN(0))
       .accounts({ payer: trader.publicKey })
       .signers([trader])
       .rpc({ skipPreflight: true, commitment: "confirmed" });

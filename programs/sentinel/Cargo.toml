@@ -25,6 +25,7 @@ anchor-lang = { version = "1.0.2", features = ["init-if-needed"] }
 anchor-spl = "1.0.2"
 ephemeral-rollups-sdk = { version = "0.14.3", features = ["anchor"] }
 magicblock-magic-program-api = { version = "0.10.1", default-features = false }
+session-keys = { version = "3.1.1", features = ["no-entrypoint"] }
 sha2 = "0.10"
 bincode = "^1.3"
 

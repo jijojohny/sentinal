@@ -40,8 +40,8 @@ pub mod sentinel {
         instructions::open_protected_position::handler(ctx, params)
     }
 
-    pub fn delegate_guard(ctx: Context<DelegateGuard>) -> Result<()> {
-        instructions::delegate_guard::handler(ctx)
+    pub fn delegate_guard(ctx: Context<DelegateGuard>, guard_id: u64) -> Result<()> {
+        instructions::delegate_guard::handler(ctx, guard_id)
     }
 
     pub fn schedule_monitor(ctx: Context<ScheduleMonitor>, args: ScheduleMonitorArgs) -> Result<()> {
@@ -50,6 +50,10 @@ pub mod sentinel {
 
     pub fn push_price(ctx: Context<PushPrice>, price: u64, ts: i64) -> Result<()> {
         instructions::push_price::handler(ctx, price, ts)
+    }
+
+    pub fn push_price_from_pyth(ctx: Context<PushPriceFromPyth>) -> Result<()> {
+        instructions::push_price_from_pyth::handler(ctx)
     }
 
     pub fn evaluate(ctx: Context<Evaluate>) -> Result<()> {
@@ -66,11 +70,55 @@ pub mod sentinel {
         instructions::execute_protection::handler(ctx)
     }
 
-    pub fn cancel_guard(ctx: Context<CancelGuard>) -> Result<()> {
-        instructions::cancel_guard::handler(ctx)
+    pub fn execute_entry<'info>(ctx: Context<'info, ExecuteEntry<'info>>) -> Result<()> {
+        instructions::execute_entry::handler(ctx)
+    }
+
+    pub fn init_portfolio(ctx: Context<InitPortfolio>, max_drawdown_bps: u16) -> Result<()> {
+        instructions::portfolio::init_portfolio(ctx, max_drawdown_bps)
+    }
+
+    pub fn enforce_drawdown<'info>(ctx: Context<'info, EnforceDrawdown<'info>>) -> Result<()> {
+        instructions::portfolio::enforce_drawdown(ctx)
+    }
+
+    pub fn cancel_guard(ctx: Context<CancelGuard>, guard_id: u64) -> Result<()> {
+        instructions::cancel_guard::handler(ctx, guard_id)
     }
 
     pub fn withdraw_vault(ctx: Context<WithdrawVault>) -> Result<()> {
         instructions::withdraw_vault::handler(ctx)
+    }
+
+    pub fn publish_strategy(
+        ctx: Context<PublishStrategy>,
+        params: PublishStrategyParams,
+    ) -> Result<()> {
+        instructions::publish_strategy::handler(ctx, params)
+    }
+
+    pub fn follow_strategy(ctx: Context<FollowStrategy>, params: FollowStrategyParams) -> Result<()> {
+        instructions::follow_strategy::handler(ctx, params)
+    }
+
+    // --- Autonomous grid / DCA bot ---
+    pub fn init_grid(ctx: Context<InitGrid>, params: InitGridParams) -> Result<()> {
+        instructions::grid::init_grid(ctx, params)
+    }
+
+    pub fn grid_step(ctx: Context<GridStep>) -> Result<()> {
+        instructions::grid::grid_step(ctx)
+    }
+
+    pub fn stop_grid(ctx: Context<StopGrid>) -> Result<()> {
+        instructions::grid::stop_grid(ctx)
+    }
+
+    pub fn delegate_grid(ctx: Context<DelegateGrid>, grid_id: u64) -> Result<()> {
+        instructions::grid::delegate_grid(ctx, grid_id)
+    }
+
+    pub fn schedule_grid(ctx: Context<ScheduleGrid>, args: ScheduleGridArgs) -> Result<()> {
+        instructions::grid::schedule_grid(ctx, args)
     }
 }

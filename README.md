@@ -100,19 +100,60 @@ a bot.
 | `push_price` | rollup | oracle | feed prices (Pyth Lazer / demo pusher) |
 | `evaluate` | rollup | **crank** | ratchet trailing stops + flip `triggered` when the rule trips |
 | `commit_guard` | rollup | anyone | commit + undelegate the triggered guard |
-| `execute_protection` | base | anyone | CPI Flash `close_position` via vault PDA |
+| `execute_protection` | base | anyone | CPI Flash `close_position` / `decrease_position` (ladder) / `add_collateral`; enforces the anti-MEV settle-lock; pays the keeper bounty |
+| `execute_entry` | base | anyone | fill a limit-entry: CPI Flash `open_position` via vault PDA, then auto-arm the bracket stop/TP |
+| `init_portfolio` / `enforce_drawdown` | base | trader / anyone | portfolio drawdown guard: trip every position if aggregate equity breaches the threshold |
+| `push_price_from_pyth` | rollup | oracle | decode a real Pyth `PriceUpdateV2` into the feed (Pyth-Lazer adapter) |
 | `cancel_guard` | base | trader | cancel a guard, reclaim guard + feed rent (non-custodial) |
 | `withdraw_vault` | base | trader | drain the vault PDA back to the wallet (non-custodial exit) |
+| `publish_strategy` / `follow_strategy` | base | leader / follower | copy-trading: publish a template, followers instantiate guards sized to their own entry |
+| `init_grid` / `grid_step` / `stop_grid` | base / **crank** / base | trader | autonomous grid + DCA bot: the crank computes rungs on-chain every tick |
+| `delegate_grid` / `schedule_grid` | base / rollup | trader | delegate + schedule the grid crank |
 
-### Rule types
+`register_guard` is **session-key aware**: the `authority` (wallet) owns the vault/guard,
+but a scoped **session key** may sign (`session_token` + `session_auth_or`) — arm/manage
+guards without the wallet online, non-custodially.
 
-- **PriceBelow** — long stop-loss / short take-profit.
-- **PriceAbove** — long take-profit / short stop-loss.
-- **TrailingStop** — the crank ratchets `trigger_price` up to `price − trail_distance`
-  as the price rises (never down), then fires on reversal. The ratchet runs **every tick,
-  gaslessly, on-chain** — continuous trailing with no server, which base Solana can't do.
-  (Proven in `tests/sentinel-trailing.ts`: stop trails 92→102 as price runs 100→110, fires
-  at 101 — locking in gains above entry.)
+### Rule types & actions (the order engine)
+
+- **PriceBelow / PriceAbove** — stop-loss / take-profit (per side).
+- **OCO bracket** — one guard with both a stop *and* a take-profit (`tp_price`); first to cross fires.
+- **TrailingStop** — the crank ratchets the stop up to `price − trail_distance` as price rises
+  (never down), fires on reversal. Continuous on-chain trailing, no server.
+- **Breakeven** — once `price ≥ entry + breakeven_offset`, the crank moves the stop to entry.
+- **Time exit** — fires when the feed timestamp passes `expiry_ts`.
+- **Action `AddMargin`** (liquidation defense) — on trip, CPI Flash `add_collateral` to *keep the
+  position alive* instead of closing.
+- **Multi-position** — one vault holds many guards (keyed by `guard_id`) — a protected portfolio.
+- **Limit-entry orders** — the crank *opens* a position when price crosses the entry (`execute_entry`).
+- **Volatility-scaled trailing** — the crank sizes the trail to realized vol from an on-chain price ring buffer.
+- **TP-ladder scale-out** — partial closes per rung (`decrease_position`), re-arming each time.
+- **Incentivized keepers** — the vault pays a `keeper_bounty` to whoever lands settlement.
+- **Portfolio drawdown guard** — `enforce_drawdown` closes every position if aggregate equity falls past a threshold.
+- **Copy-trading marketplace** — publish a strategy (offset template + follow fee); followers instantiate sized guards.
+- **Bracket orders** — a limit entry that, the moment the crank fills it, auto-arms its own protective
+  stop (`bracket_stop`) and take-profit: `execute_entry` flips the guard from `Entry` to `Protect`,
+  re-points the trigger at the stop, and re-activates it — entry → protection in one armed object, no
+  second transaction.
+- **Anti-MEV settle-lock** — on trip, the crank sets `settle_after_ts = now + settle_delay + jitter`,
+  where the jitter is derived deterministically on-chain from `price`, `ts`, and `guard_id`.
+  `execute_protection` / `execute_entry` reject any settle before that timestamp, so the protective
+  close lands in an unpredictable window instead of a front-runnable fixed slot.
+
+All proven on a local validator (15 tests green): `sentinel-orders.ts` (OCO/breakeven/liq-defense 3/3),
+`sentinel-trailing.ts` (1/1), `sentinel-copytrade.ts` (1/1), `sentinel-grid.ts` (grid+DCA 2/2),
+`sentinel-settlement-local.ts` (3/3), `sentinel-round2.ts` (keeper-bounty/limit-entry/ladder 3/3),
+`sentinel-round3.ts` (bracket-on-fill + anti-MEV settle-lock 2/2).
+
+## Off-chain operators (the keeper network)
+
+The on-chain crank decides; permissionless off-chain bots execute. Both are standalone Node
+scripts (run with `npx ts-mocha -p ./tsconfig.json -t 0 scripts/<file>.ts`):
+- **`scripts/keeper.ts`** — watches for tripped guards and lands settlement (`execute_protection` /
+  `execute_entry`), earning each guard's `keeper_bounty`. Anyone can run it; the program is the
+  sole authority, so keepers have zero discretion. Run against a cluster without legacy-layout
+  accounts (a fresh local validator or devnet).
+- **`scripts/notifier.ts`** — fires Telegram/webhook alerts when a guard trips or settles.
 
 > The **vault** is a data-less PDA at `[b"vault", trader]`. It owns the Flash position and
 > signs the open/close CPIs via `invoke_signed` — and because it carries no account data it
@@ -182,8 +223,15 @@ no server process running**.
   *someone* to submit `commit_guard` + `execute_protection`, but they have zero discretion
   (the program checks `triggered`/price and is the sole authority) — a stateless relayer or
   one button click.
-- Vision (not in the weekend scope): take-profit ladders, trailing stops, TWAP/OCO, and a
-  full algo-order terminal — all the same pattern, more rules.
+- **Anti-MEV is shipped as a deterministic time-lock + on-chain jitter**, not VRF. The jitter
+  seed is `price ^ (ts·2654435761) ^ (guard_id·40503)` — cheap, no extra accounts, no cross-program
+  coupling, and it already removes the fixed-slot front-run target. Verifiable randomness
+  (`ephemeral-vrf-sdk`'s request/callback) is the documented upgrade: it would make the delay
+  unpredictable even to an observer who can reconstruct the seed, at the cost of a VRF round-trip
+  inside the ER. We chose the robust, self-contained version for the weekend and call the VRF
+  swap out honestly rather than ship a fragile dependency.
+- Vision (not in the weekend scope): VRF-backed jitter, TWAP/OCO ladders, and a full algo-order
+  terminal — all the same pattern, more rules.
 
 ## Built with
 
