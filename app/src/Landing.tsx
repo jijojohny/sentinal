@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useWallet } from "@solana/wallet-adapter-react";
 import * as I from "./icons";
 
 const NAV = [
@@ -9,9 +10,12 @@ const NAV = [
   { label: "The rollup", href: "#rollup" },
 ];
 
-export default function Landing() {
+export default function Landing({ onLaunch }: { onLaunch: () => void }) {
   const { setVisible } = useWalletModal();
-  const launch = () => setVisible(true);
+  const { publicKey } = useWallet();
+  // Always advance past the landing; only pop the wallet modal if not already connected
+  // (autoConnect may have silently reconnected a returning visitor).
+  const launch = () => { onLaunch(); if (!publicKey) setVisible(true); };
   const [clock, setClock] = useState(timeStr());
   useEffect(() => { const t = setInterval(() => setClock(timeStr()), 1000); return () => clearInterval(t); }, []);
 

@@ -26,7 +26,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 function Root() {
-  const [cluster, setCluster] = useState<ClusterKey>("local");
+  // Public (production) build opens on devnet against the deployed programs;
+  // `npm run dev` stays on localnet for local validator work.
+  const [cluster, setCluster] = useState<ClusterKey>(import.meta.env.PROD ? "devnet" : "local");
   const endpoint = CLUSTERS[cluster].rpc;
   const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
   return (

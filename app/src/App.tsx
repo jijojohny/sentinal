@@ -41,6 +41,9 @@ export default function App({ cluster, setCluster }: { cluster: ClusterKey; setC
   const [toast, setToast] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
   const [hist, setHist] = useState<Record<string, number[]>>({});
   const [tab, setTab] = useState("guards");
+  // The landing page is always the first screen — even if autoConnect silently
+  // reconnects a wallet. The user explicitly clicks "Launch app" to enter the dashboard.
+  const [entered, setEntered] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!client) return;
@@ -74,7 +77,7 @@ export default function App({ cluster, setCluster }: { cluster: ClusterKey; setC
     finally { setBusy(""); }
   };
 
-  if (!wallet.publicKey) return <Landing />;
+  if (!entered || !wallet.publicKey) return <Landing onLaunch={() => setEntered(true)} />;
   const focus = guards?.find((g: any) => g.active && !g.executed) ?? guards?.[0];
 
   return (
